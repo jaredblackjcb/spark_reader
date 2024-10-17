@@ -4,6 +4,13 @@ import uuid
 import sounddevice as sd
 import scipy.io.wavfile as wav
 from pydub import AudioSegment
+import threading
+import numpy as np
+import queue
+
+# Global variables to control recording
+is_recording = False
+audio_queue = queue.Queue()
 
 def play_audio(audio_file):
     # Play the given audio file using pygame
@@ -11,20 +18,45 @@ def play_audio(audio_file):
     pygame.mixer.music.load(audio_file)
     pygame.mixer.music.play()
 
-def record_audio(duration=None):
-    # Record audio for a specified duration or indefinitely
+def record_audio_thread():
+    global is_recording, audio_queue
+    
+    with sd.InputStream(samplerate=44100, channels=1, dtype='int16') as stream:
+        while is_recording:
+            audio_chunk, overflowed = stream.read(1024)
+            if not overflowed:
+                audio_queue.put(audio_chunk)
+
+def record_audio():
+    global is_recording, audio_queue
+    is_recording = True
+    
+    # Record audio indefinitely
     file_name = f"{uuid.uuid4()}.wav"
     file_path = os.path.join("audio", file_name)
     
-    print("Recording... Press Ctrl+C to stop.")
-    try:
-        # Start recording
-        recording = sd.rec(int(duration * 44100) if duration else None, samplerate=44100, channels=1, dtype='int16')
-        sd.wait()  # Wait for the recording to complete
-    except KeyboardInterrupt:
-        sd.stop()  # Stop recording if interrupted
+    print("Recording... Use stop_audio_recording() to stop.")
+    
+    # Start recording in a separate thread
+    recording_thread = threading.Thread(target=record_audio_thread)
+    recording_thread.start()
+    
+    return file_path
+
+def stop_audio_recording():
+    global is_recording, audio_queue
+    is_recording = False
+    
+    # Combine all recorded chunks
+    recorded_chunks = []
+    while not audio_queue.empty():
+        recorded_chunks.append(audio_queue.get())
+    
+    recording = np.concatenate(recorded_chunks, axis=0)
     
     # Save the recorded audio to a file
+    file_name = f"{uuid.uuid4()}.wav"
+    file_path = os.path.join("audio", file_name)
     wav.write(file_path, 44100, recording)
     print(f"Recording saved as {file_path}")
     return file_path

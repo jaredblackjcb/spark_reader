@@ -4,6 +4,9 @@ import imagehash
 from PIL import Image
 import cv2
 from collections import deque
+import os
+import uuid
+from src.image_mapping import ImageMapping
 
 '''
  TODO: Use a queue to store the last few seconds of image hashes and hamming distances to make
@@ -19,23 +22,32 @@ from collections import deque
 
 class ImageContextController:
     def __init__(self, refresh_rate=0.4, history_size=2, stable_threshold=10, max_hamming_distance=15, on_stable_context=None):
-        self.current_key_image_hash = None  # Stores the stable image hash for audio lookup
-        self.hamming_history = deque(maxlen=history_size)  # Queue for last few seconds of hamming distances
-        self.hamming_delta = deque(maxlen=history_size)  # Queue for rate of change of hamming distances
-        self.hash_history = deque(maxlen=history_size)  # Queue for last few image hashes
-        self.refresh_rate = refresh_rate  # Time between checks in seconds
-        self.stable_threshold = stable_threshold  # Stability threshold for hamming delta
-        self.max_hamming_distance = max_hamming_distance  # Max allowable hamming distance before resetting
+        self.current_image_mapping = None  # Stores the current ImageMapping object
+        self.hamming_history = deque(maxlen=history_size)
+        self.hamming_delta = deque(maxlen=history_size)
+        self.hash_history = deque(maxlen=history_size)
+        self.refresh_rate = refresh_rate
+        self.stable_threshold = stable_threshold
+        self.max_hamming_distance = max_hamming_distance
         self.is_running = False
         self._thread = None
-        self.on_stable_context = on_stable_context # callback function to notify subscriber when a stable context is reached
-        self.previous_page_hash = None # TODO: Add control logic to avoid recording or narrating the same page twice
+        self.on_stable_context = on_stable_context
+        self.previous_page_hash = None
 
-    def _set_image_context(self, image_hash):
-        """Set the current image hash as the key context for audio lookup."""
-        self.current_key_image_hash = image_hash
-        print(f"Key image hash updated: {image_hash}")
-        self.on_stable_context(image_hash)
+    def _set_image_context(self, new_image, new_image_hash):
+        """Set the current image as the key context for audio lookup."""
+        image_path = self._save_image(new_image)
+        self.current_image_mapping = ImageMapping(image_path, str(new_image_hash))
+        print(f"New image mapping created: {self.current_image_mapping.image_hash}")
+        if self.on_stable_context:
+            self.on_stable_context(self.current_image_mapping)
+
+    def _save_image(self, image):
+        """Save the captured image with a unique filename."""
+        filename = f"{uuid.uuid4()}.jpg"
+        image_path = os.path.join("images", filename)
+        image.save(image_path)
+        return image_path
 
     def _capture_image(self):
         """Capture an image from the camera and return a PIL image."""
@@ -43,10 +55,8 @@ class ImageContextController:
         time.sleep(0.1)  # Short delay to stabilize the camera feed
         ret, frame = cap.read()
         if ret:
-            img_path = '/images/current_image.jpg'
-            cv2.imwrite(img_path, frame)
             cap.release()
-            return Image.open(img_path)
+            return Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
         else:
             cap.release()
             raise RuntimeError("Failed to capture image from the camera")
@@ -57,29 +67,23 @@ class ImageContextController:
             new_image = self._capture_image()
             new_image_hash = imagehash.phash(new_image)
 
-            # Compare the new hash with the last one in history
             if len(self.hash_history) > 0:
                 hamming_distance = self.hash_history[-1] - new_image_hash
                 print(f"Hamming distance: {hamming_distance}")
 
-                # Update history queues
                 previous_hamming_distance = self.hamming_history[-1] if self.hamming_history else 0
                 self.hamming_delta.append(hamming_distance - previous_hamming_distance)
                 self.hamming_history.append(hamming_distance)
             else:
-                # First entry has no previous comparison
                 self.hamming_delta.append(0)
                 self.hamming_history.append(0)
             
             self.hash_history.append(new_image_hash)
-            print(f"Hash history: {self.hash_history}")
-            print(f"Hamming history: {self.hamming_history}")
-            print(f"Hamming delta: {self.hamming_delta}")
-            # If history is full, evaluate context stability
+
             if len(self.hash_history) == self.hash_history.maxlen:
                 if self._is_stable_context(hamming_distance):
-                    print("Stable context detected. Updating key image hash.")
-                    self._set_image_context(new_image_hash)
+                    print("Stable context detected. Creating new image mapping.")
+                    self._set_image_context(new_image, new_image_hash)
                 else:
                     print("Context unstable. Waiting for further confirmation.")
 
