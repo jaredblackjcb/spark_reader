@@ -18,7 +18,7 @@ from collections import deque
 '''
 
 class ImageContextController:
-    def __init__(self, refresh_rate=0.4, history_size=2, stable_threshold=10, max_hamming_distance=15):
+    def __init__(self, refresh_rate=0.4, history_size=2, stable_threshold=10, max_hamming_distance=15, on_stable_context=None):
         self.current_key_image_hash = None  # Stores the stable image hash for audio lookup
         self.hamming_history = deque(maxlen=history_size)  # Queue for last few seconds of hamming distances
         self.hamming_delta = deque(maxlen=history_size)  # Queue for rate of change of hamming distances
@@ -28,11 +28,14 @@ class ImageContextController:
         self.max_hamming_distance = max_hamming_distance  # Max allowable hamming distance before resetting
         self.is_running = False
         self._thread = None
+        self.on_stable_context = on_stable_context # callback function to notify subscriber when a stable context is reached
+        self.previous_page_hash = None # TODO: Add control logic to avoid recording or narrating the same page twice
 
     def _set_image_context(self, image_hash):
         """Set the current image hash as the key context for audio lookup."""
         self.current_key_image_hash = image_hash
         print(f"Key image hash updated: {image_hash}")
+        self.on_stable_context(image_hash)
 
     def _capture_image(self):
         """Capture an image from the camera and return a PIL image."""
@@ -40,7 +43,7 @@ class ImageContextController:
         time.sleep(0.1)  # Short delay to stabilize the camera feed
         ret, frame = cap.read()
         if ret:
-            img_path = 'current_image.jpg'
+            img_path = '/images/current_image.jpg'
             cv2.imwrite(img_path, frame)
             cap.release()
             return Image.open(img_path)
@@ -69,7 +72,9 @@ class ImageContextController:
                 self.hamming_history.append(0)
             
             self.hash_history.append(new_image_hash)
-
+            print(f"Hash history: {self.hash_history}")
+            print(f"Hamming history: {self.hamming_history}")
+            print(f"Hamming delta: {self.hamming_delta}")
             # If history is full, evaluate context stability
             if len(self.hash_history) == self.hash_history.maxlen:
                 if self._is_stable_context(hamming_distance):
@@ -93,12 +98,12 @@ class ImageContextController:
         # Ensure the current hamming distance is not too high (dynamic event like page turn or hand movement)
         if current_hamming_distance > self.max_hamming_distance:
             print("Detected a large change. Likely a dynamic event, resetting context evaluation.")
-            self._reset_context()
+            self.reset_context()
             return False
 
         return stable_deltas
 
-    def _reset_context(self):
+    def reset_context(self):
         """Reset the context evaluation to avoid transient events being captured as key images."""
         self.hamming_history.clear()
         self.hamming_delta.clear()

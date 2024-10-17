@@ -6,7 +6,7 @@ def capture_image():
     input("Press enter to capture image")
     # Capture the image from the camera and save it to a file
     cap = cv2.VideoCapture(0)
-    time.sleep(1)
+    time.sleep(.1)
     ret, img = cap.read()
     cap.release()
 
