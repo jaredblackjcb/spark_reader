@@ -1,7 +1,7 @@
 import sqlite3
 import cv2
 import numpy as np
-
+import os
 class ImageMapping:
     def __init__(self, image_path, image_hash):
         self.book_id = None
@@ -11,7 +11,9 @@ class ImageMapping:
         self.sift_features = None
 
 class ImageMappingDB:
-    def __init__(self, db_path='image_mappings.db'):
+    def __init__(self, db_path='data/image_mappings.db'):
+        if not os.path.exists('data'):
+            os.makedirs('data')
         self.conn = sqlite3.connect(db_path)
         self.create_table()
 
