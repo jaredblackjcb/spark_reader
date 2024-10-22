@@ -1,13 +1,12 @@
 import threading
 import time
-import imagehash
 from PIL import Image
 import cv2
 from collections import deque
-import os
-import uuid
-from src.image_mapping import ImageMapping
+from src.image_mapping import ImageMapping, ImageMappingDB
 from enum import Enum
+from src.image_utils import hash_image, save_image, capture_image
+from imagehash import ImageHash
 
 class ContextState(Enum):
     SEARCHING_STABLE = 1
@@ -35,41 +34,24 @@ class ImageContextController:
         self.led_indicator = led_indicator
         self.state = ContextState.SEARCHING_STABLE
         self.stable_count = 0
+        self.db = None  # We'll initialize this in the thread
 
     def _set_image_context(self, new_image, new_image_hash):
-        image_path = self._save_image(new_image)
-        self.current_image_mapping = ImageMapping(image_path, str(new_image_hash))
+        image_path = save_image(new_image, temp=True)
+        image_mapping = ImageMapping(image_path=image_path, image_hash=new_image_hash)
+        self.current_image_mapping = image_mapping
         self.last_key_image_hash = new_image_hash
-        print(f"New page detected. Image mapping created: {self.current_image_mapping.image_hash}")
-        if self.on_stable_context:
-            self.on_stable_context(self.current_image_mapping)
-
-    def _save_image(self, image):
-        filename = f"{uuid.uuid4()}.jpg"
-        image_path = os.path.join("images", filename)
-        image.save(image_path)
-        return image_path
-
-    def _capture_image(self):
-        cap = cv2.VideoCapture(0)
-        time.sleep(0.1)
-        ret, frame = cap.read()
-        if ret:
-            cap.release()
-            return Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-        else:
-            cap.release()
-            raise RuntimeError("Failed to capture image from the camera")
+        print(f"New page detected. Image mapping created: {image_mapping.image_hash}")
+        return image_mapping
 
     def _detect_context_switch(self):
         try:
-            new_image = self._capture_image()
-            new_image_hash = imagehash.phash(new_image)
+            new_image = capture_image()
+            new_image_hash = hash_image(new_image)
 
             if len(self.hash_history) > 0:
-                hamming_distance = self.hash_history[-1] - new_image_hash
+                hamming_distance = new_image_hash - self.hash_history[-1]
                 print(f"Hamming distance from last image: {hamming_distance}")
-                # print(f"Hamming history: {self.hamming_history}")
                 self.hamming_history.append(hamming_distance)
             else:
                 self.hamming_history.append(0)
@@ -85,6 +67,8 @@ class ImageContextController:
 
         except Exception as e:
             print(f"Error in context detection: {e}")
+            import traceback
+            traceback.print_exc()  # This will print the full stack trace
 
     def _handle_searching_stable(self):
         self._set_led(LEDColor.YELLOW)
@@ -93,16 +77,18 @@ class ImageContextController:
             print("Stable context found. Ready to set key image.")
 
     def _handle_stable_found(self, new_image, new_image_hash):
-        if abs(new_image_hash - self.hash_history[-1]) < self.stable_threshold:
-            self._set_image_context(new_image, new_image_hash)
+        if (new_image_hash - self.hash_history[-1]) < self.stable_threshold:
+            image_mapping = self._set_image_context(new_image, new_image_hash)
             self.state = ContextState.WAITING_PAGE_TURN
             self._set_led(LEDColor.GREEN)
+            if self.on_stable_context:
+                self.on_stable_context(image_mapping)
         else:
             self.state = ContextState.SEARCHING_STABLE
 
     def _handle_waiting_page_turn(self, new_image, new_image_hash):
         if self.last_key_image_hash is not None:
-            hamming_distance = self.last_key_image_hash - new_image_hash
+            hamming_distance = new_image_hash - self.last_key_image_hash
             print(f"Hamming distance from last key image: {hamming_distance}")
             if hamming_distance > self.page_turn_threshold:
                 print("Page turn detected. Searching for new stable context.")
@@ -131,9 +117,11 @@ class ImageContextController:
         self._thread.start()
 
     def _run(self):
+        self.db = ImageMappingDB()  # Create a new database connection for this thread
         while self.is_running:
             self._detect_context_switch()
             time.sleep(self.refresh_rate)
+        self.db.close()  # Close the database connection when the thread stops
 
     def stop(self):
         self.is_running = False
