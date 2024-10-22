@@ -1,10 +1,3 @@
-import cv2
-import uuid
-
-from src.fingerprint import store_fingerprint, generate_fingerprint
-from src.matcher import match_fingerprint
-from src.audio import play_audio, record_audio
-from src.camera import capture_image
 from src.narrator import Narrator
 from src.recorder import Recorder
 
