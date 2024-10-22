@@ -1,6 +1,4 @@
 import sqlite3
-import cv2
-import numpy as np
 import os
 from imagehash import ImageHash, hex_to_hash
 from threading import local
@@ -56,33 +54,34 @@ class ImageMappingDB:
     def get_book_mappings(self, book_id):
         cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM image_mappings WHERE book_id = ?', (book_id,))
-        return cursor.fetchall()
+        # return data as a list of ImageMapping objects
+        return [ImageMapping(*row) for row in cursor.fetchall()]
     
-    def get_book_mappings_by_hash(self, book_id, image_hash, threshold=5):
-        cursor = self.conn.cursor()
-        cursor.execute('SELECT * FROM image_mappings WHERE book_id = ?', (book_id,))
-        mappings = cursor.fetchall()
+    # def get_book_mappings_by_hash(self, book_id, image_hash, threshold=5):
+    #     cursor = self.conn.cursor()
+    #     cursor.execute('SELECT * FROM image_mappings WHERE book_id = ?', (book_id,))
+    #     mappings = cursor.fetchall()
         
-        matches = []
-        for mapping in mappings:
-            stored_hash = ImageHash(int(mapping[4], 16))  # Convert stored hash string back to ImageHash
-            if image_hash - stored_hash <= threshold:
-                matches.append(mapping)
+    #     matches = []
+    #     for mapping in mappings:
+    #         stored_hash = hex_to_hash(mapping[4])  # Convert stored hash string back to ImageHash
+    #         if image_hash - stored_hash <= threshold:
+    #             matches.append(mapping)
         
-        return matches
+    #     return matches
 
-    def hamming_distance(self, hash1, hash2):
-        return bin(int(hash1, 16) ^ int(hash2, 16)).count('1')
+    # def hamming_distance(self, hash1, hash2):
+    #     return bin(int(hash1, 16) ^ int(hash2, 16)).count('1')
     
-    def get_book_mappings_by_sift_features(self, book_id, query_features, threshold=0.7):
-        cursor = self.conn.cursor()
-        cursor.execute('SELECT * FROM image_mappings WHERE book_id = ? AND sift_features = ?', (book_id, sqlite3.Binary(query_features.tobytes())))
-        return cursor.fetchall()
+    # def get_book_mappings_by_sift_features(self, book_id, query_features, threshold=0.7):
+    #     cursor = self.conn.cursor()
+    #     cursor.execute('SELECT * FROM image_mappings WHERE book_id = ? AND sift_features = ?', (book_id, sqlite3.Binary(query_features.tobytes())))
+    #     return cursor.fetchall()
     
-    def get_book_mappings_by_orb_features(self, book_id, query_features, threshold=0.7):
-        cursor = self.conn.cursor()
-        cursor.execute('SELECT * FROM image_mappings WHERE book_id = ? AND orb_features = ?', (book_id, sqlite3.Binary(query_features.tobytes())))
-        return cursor.fetchall()
+    # def get_book_mappings_by_orb_features(self, book_id, query_features, threshold=0.7):
+    #     cursor = self.conn.cursor()
+    #     cursor.execute('SELECT * FROM image_mappings WHERE book_id = ? AND orb_features = ?', (book_id, sqlite3.Binary(query_features.tobytes())))
+    #     return cursor.fetchall()
 
     def get_mapping_by_hash(self, image_hash, threshold=5):
         cursor = self.conn.cursor()
@@ -102,35 +101,6 @@ class ImageMappingDB:
                 best_match = mapping
         
         return best_match
-    
-
-
-    # def get_mapping_by_features(self, query_features, threshold=0.7):
-    #     cursor = self.conn.cursor()
-    #     cursor.execute('SELECT * FROM image_mappings')
-    #     mappings = cursor.fetchall()
-
-    #     best_match = None
-    #     best_match_count = 0
-
-    #     for mapping in mappings:
-    #         db_features = np.frombuffer(mapping[5], dtype=np.float32).reshape(-1, 128)
-            
-    #         # FLANN matcher
-    #         FLANN_INDEX_KDTREE = 1
-    #         index_params = dict(algorithm=FLANN_INDEX_KDTREE, trees=5)
-    #         search_params = dict(checks=50)
-    #         flann = cv2.FlannBasedMatcher(index_params, search_params)
-    #         matches = flann.knnMatch(query_features, db_features, k=2)
-
-    #         # Apply ratio test
-    #         good_matches = [m for m, n in matches if m.distance < threshold * n.distance]
-
-    #         if len(good_matches) > best_match_count:
-    #             best_match_count = len(good_matches)
-    #             best_match = mapping
-
-    #     return best_match
 
     def get_next_book_id(self):
         cursor = self.conn.cursor()
