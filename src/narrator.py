@@ -23,11 +23,10 @@ class Narrator:
             self.db.close()
 
     def _handle_stable_context(self, image_mapping):
-
         match = self.image_matcher.match_image(image_mapping.image_path, self.book_id)
         self.book_id = match.book_id if match else None
         if match:
-            audio_path = match[3]  # Assuming audio_path is at index 3 in the database row
+            audio_path = match.audio_path
             if audio_path != self.current_audio:
                 self.current_audio = audio_path
                 self._play_audio(audio_path)

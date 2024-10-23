@@ -52,7 +52,7 @@ class ImageMatcher:
 
         return None
 
-    def _match_hash(self, image_hash: ImageHash, threshold=5):
+    def _match_hash(self, image_hash: ImageHash, threshold=25):
         if self.current_book_mappings:
             return next((mapping for mapping in self.current_book_mappings 
                          if ImageHash(mapping.image_hash) - image_hash <= threshold), None)

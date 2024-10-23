@@ -2,7 +2,6 @@ from src.narrator import Narrator
 from src.recorder import Recorder
 
 if __name__ == "__main__":
-
     narrator = Narrator()
     recorder = Recorder()
     option = None

@@ -3,6 +3,8 @@ from src.image_mapping import ImageMappingDB
 from src.audio_utils import record_audio, split_audio, stop_audio_recording
 import time
 from src.image_utils import save_image, extract_orb_features, extract_sift_features, open_image, hash_image
+import logging
+from contextlib import contextmanager
 
 class Recorder:
     def __init__(self):
@@ -21,13 +23,15 @@ class Recorder:
             timestamp = time.time() - self.recording_start_time
             # Retrieve the current image and save it
             current_image = open_image(new_image_mapping.image_path)
-            save_image(current_image)
+            new_image_path = save_image(current_image)
+            new_image_mapping.image_path = new_image_path
             self.page_timestamps.append((timestamp, new_image_mapping))
             print(f"Page turn detected at {timestamp:.2f} seconds")
 
     def start_recording(self):
         # Begin the recording process
-        self.image_mapping_db = ImageMappingDB()  # Create a new database connection for this thread
+        if self.image_mapping_db is None:
+            self.image_mapping_db = ImageMappingDB()  # Create a new database connection
         self.recording_start_time = time.time()
         
         # Start audio recording in the background
@@ -42,8 +46,6 @@ class Recorder:
         
         # Stop the audio recording and get the final audio file path
         self.current_audio_file = stop_audio_recording()
-        if self.image_mapping_db:
-            self.image_mapping_db.close()
 
     def process_recording(self):
         # Process the recorded audio and associate it with detected page turns
@@ -64,9 +66,30 @@ class Recorder:
                 image_mapping.orb_features
             )
 
+    @contextmanager
+    def _recording_session(self):
+        try:
+            self.start_recording()
+            yield
+        finally:
+            self.stop_recording()
+
     def record_book(self):
-        # Main method to record a book
-        self.start_recording()
-        input("Press Enter when you've finished reading the book...")
-        self.stop_recording()
-        self.process_recording()
+        try:
+            with self._recording_session():
+                logging.info("Recording started. Press Enter when you've finished reading the book...")
+                input("Press Enter when you've finished reading the book...")
+            self.process_recording()
+            logging.info("Recording processed successfully.")
+        except Exception as e:
+            logging.error(f"An error occurred during recording: {e}")
+            # Implement cleanup if necessary
+        finally:
+            if self.image_mapping_db:
+                self.image_mapping_db.close()
+                self.image_mapping_db = None  # Set to None after closing
+
+    def __del__(self):
+        # Ensure the database connection is closed when the Recorder object is destroyed
+        if hasattr(self, 'image_mapping_db') and self.image_mapping_db:
+            self.image_mapping_db.close()

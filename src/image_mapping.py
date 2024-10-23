@@ -8,13 +8,14 @@ class ThreadLocalDB(local):
         self.conn = sqlite3.connect(db_path)
 
 class ImageMapping:
-    def __init__(self, image_path, image_hash):
-        self.book_id = None
+    def __init__(self, id=None, book_id=None, image_path=None, audio_path=None, image_hash=None, sift_features=None, orb_features=None):
+        self.id = id
+        self.book_id = book_id
         self.image_path = image_path
-        self.audio_path = None
+        self.audio_path = audio_path
         self.image_hash = image_hash
-        self.sift_features = None
-        self.orb_features = None
+        self.sift_features = sift_features
+        self.orb_features = orb_features
 
 class ImageMappingDB:
     def __init__(self, db_path='data/image_mappings.db'):
@@ -83,7 +84,7 @@ class ImageMappingDB:
     #     cursor.execute('SELECT * FROM image_mappings WHERE book_id = ? AND orb_features = ?', (book_id, sqlite3.Binary(query_features.tobytes())))
     #     return cursor.fetchall()
 
-    def get_mapping_by_hash(self, image_hash, threshold=5):
+    def get_mapping_by_hash(self, image_hash, threshold=25):
         cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM image_mappings')
         mappings = cursor.fetchall()
@@ -92,7 +93,6 @@ class ImageMappingDB:
         min_distance = float('inf')
         
         for mapping in mappings:
-            # Convert stored hash string back to ImageHash
             stored_hash = hex_to_hash(mapping[4])  # Ensure proper conversion to ImageHash
             distance = image_hash - stored_hash
             
@@ -100,7 +100,7 @@ class ImageMappingDB:
                 min_distance = distance
                 best_match = mapping
         
-        return best_match
+        return ImageMapping(*best_match) if best_match else None
 
     def get_next_book_id(self):
         cursor = self.conn.cursor()
