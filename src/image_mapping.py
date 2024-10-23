@@ -1,36 +1,45 @@
 import sqlite3
 import os
+from typing import Optional, List, Union
 from imagehash import ImageHash, hex_to_hash
 from threading import local
+import numpy as np
 
 class ThreadLocalDB(local):
-    def __init__(self, db_path):
-        self.conn = sqlite3.connect(db_path)
+    def __init__(self, db_path: str) -> None:
+        self.conn: sqlite3.Connection = sqlite3.connect(db_path)
 
 class ImageMapping:
-    def __init__(self, id=None, book_id=None, image_path=None, audio_path=None, image_hash=None, sift_features=None, orb_features=None):
-        self.id = id
-        self.book_id = book_id
-        self.image_path = image_path
-        self.audio_path = audio_path
-        self.image_hash = image_hash
-        self.sift_features = sift_features
-        self.orb_features = orb_features
+    def __init__(self, 
+                 id: Optional[int] = None, 
+                 book_id: Optional[int] = None, 
+                 image_path: Optional[str] = None, 
+                 audio_path: Optional[str] = None, 
+                 image_hash: Optional[Union[str, ImageHash]] = None, 
+                 sift_features: Optional[np.ndarray] = None, 
+                 orb_features: Optional[np.ndarray] = None) -> None:
+        self.id: Optional[int] = id
+        self.book_id: Optional[int] = book_id
+        self.image_path: Optional[str] = image_path
+        self.audio_path: Optional[str] = audio_path
+        self.image_hash: Optional[Union[str, ImageHash]] = image_hash
+        self.sift_features: Optional[np.ndarray] = sift_features
+        self.orb_features: Optional[np.ndarray] = orb_features
 
 class ImageMappingDB:
-    def __init__(self, db_path='data/image_mappings.db'):
+    def __init__(self, db_path: str = 'data/image_mappings.db') -> None:
         if not os.path.exists('data'):
             os.makedirs('data')
-        self.db_path = db_path
-        self.local = ThreadLocalDB(db_path)
+        self.db_path: str = db_path
+        self.local: ThreadLocalDB = ThreadLocalDB(db_path)
         self.create_table()
 
     @property
-    def conn(self):
+    def conn(self) -> sqlite3.Connection:
         return self.local.conn
 
-    def create_table(self):
-        cursor = self.conn.cursor()
+    def create_table(self) -> None:
+        cursor: sqlite3.Cursor = self.conn.cursor()
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS image_mappings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -44,57 +53,32 @@ class ImageMappingDB:
         ''')
         self.conn.commit()
 
-    def add_mapping(self, book_id, image_path, audio_path, image_hash, sift_features, orb_features):
-        cursor = self.conn.cursor()
+    def add_mapping(self, book_id: int, image_path: str, audio_path: str, 
+                    image_hash: ImageHash, sift_features: np.ndarray, 
+                    orb_features: np.ndarray) -> None:
+        cursor: sqlite3.Cursor = self.conn.cursor()
         cursor.execute('''
             INSERT INTO image_mappings (book_id, image_path, audio_path, image_hash, sift_features, orb_features)
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (book_id, image_path, audio_path, str(image_hash), sqlite3.Binary(sift_features.tobytes()), sqlite3.Binary(orb_features.tobytes())))
         self.conn.commit()
 
-    def get_book_mappings(self, book_id):
-        cursor = self.conn.cursor()
+    def get_book_mappings(self, book_id: int) -> List[ImageMapping]:
+        cursor: sqlite3.Cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM image_mappings WHERE book_id = ?', (book_id,))
-        # return data as a list of ImageMapping objects
         return [ImageMapping(*row) for row in cursor.fetchall()]
-    
-    # def get_book_mappings_by_hash(self, book_id, image_hash, threshold=5):
-    #     cursor = self.conn.cursor()
-    #     cursor.execute('SELECT * FROM image_mappings WHERE book_id = ?', (book_id,))
-    #     mappings = cursor.fetchall()
-        
-    #     matches = []
-    #     for mapping in mappings:
-    #         stored_hash = hex_to_hash(mapping[4])  # Convert stored hash string back to ImageHash
-    #         if image_hash - stored_hash <= threshold:
-    #             matches.append(mapping)
-        
-    #     return matches
 
-    # def hamming_distance(self, hash1, hash2):
-    #     return bin(int(hash1, 16) ^ int(hash2, 16)).count('1')
-    
-    # def get_book_mappings_by_sift_features(self, book_id, query_features, threshold=0.7):
-    #     cursor = self.conn.cursor()
-    #     cursor.execute('SELECT * FROM image_mappings WHERE book_id = ? AND sift_features = ?', (book_id, sqlite3.Binary(query_features.tobytes())))
-    #     return cursor.fetchall()
-    
-    # def get_book_mappings_by_orb_features(self, book_id, query_features, threshold=0.7):
-    #     cursor = self.conn.cursor()
-    #     cursor.execute('SELECT * FROM image_mappings WHERE book_id = ? AND orb_features = ?', (book_id, sqlite3.Binary(query_features.tobytes())))
-    #     return cursor.fetchall()
-
-    def get_mapping_by_hash(self, image_hash, threshold=25):
-        cursor = self.conn.cursor()
+    def get_mapping_by_hash(self, image_hash: ImageHash, threshold: int = 25) -> Optional[ImageMapping]:
+        cursor: sqlite3.Cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM image_mappings')
-        mappings = cursor.fetchall()
+        mappings: List[tuple] = cursor.fetchall()
         
-        best_match = None
-        min_distance = float('inf')
+        best_match: Optional[tuple] = None
+        min_distance: float = float('inf')
         
         for mapping in mappings:
-            stored_hash = hex_to_hash(mapping[4])  # Ensure proper conversion to ImageHash
-            distance = image_hash - stored_hash
+            stored_hash: ImageHash = hex_to_hash(mapping[4])
+            distance: int = image_hash - stored_hash
             
             if distance < min_distance and distance <= threshold:
                 min_distance = distance
@@ -102,11 +86,11 @@ class ImageMappingDB:
         
         return ImageMapping(*best_match) if best_match else None
 
-    def get_next_book_id(self):
-        cursor = self.conn.cursor()
+    def get_next_book_id(self) -> int:
+        cursor: sqlite3.Cursor = self.conn.cursor()
         cursor.execute('SELECT MAX(book_id) FROM image_mappings')
-        result = cursor.fetchone()
+        result: Optional[tuple] = cursor.fetchone()
         return result[0] + 1 if result[0] is not None else 1
 
-    def close(self):
+    def close(self) -> None:
         self.conn.close()
