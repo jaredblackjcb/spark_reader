@@ -50,8 +50,9 @@ class Recorder:
     def process_recording(self):
         # Process the recorded audio and associate it with detected page turns
         audio_clips = split_audio(self.current_audio_file, self.page_timestamps)
+        book_id = self.image_mapping_db.get_next_book_id()
         for i, (audio_clip, (_, image_mapping)) in enumerate(zip(audio_clips, self.page_timestamps)):
-            image_mapping.book_id = self.image_mapping_db.get_next_book_id()
+            image_mapping.book_id = book_id
             image_mapping.audio_path = audio_clip
             image_mapping.sift_features = extract_sift_features(image_mapping.image_path)
             image_mapping.orb_features = extract_orb_features(image_mapping.image_path)

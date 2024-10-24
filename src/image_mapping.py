@@ -67,24 +67,22 @@ class ImageMappingDB:
         cursor: sqlite3.Cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM image_mappings WHERE book_id = ?', (book_id,))
         return [ImageMapping(*row) for row in cursor.fetchall()]
-
-    def get_mapping_by_hash(self, image_hash: ImageHash, threshold: int = 25) -> Optional[ImageMapping]:
+    
+    def get_mappings_by_hash(self, image_hash: ImageHash, threshold: int = 25) -> Optional[List[ImageMapping]]:
         cursor: sqlite3.Cursor = self.conn.cursor()
         cursor.execute('SELECT * FROM image_mappings')
         mappings: List[tuple] = cursor.fetchall()
         
-        best_match: Optional[tuple] = None
-        min_distance: float = float('inf')
+        matches: List[ImageMapping] = []
         
         for mapping in mappings:
             stored_hash: ImageHash = hex_to_hash(mapping[4])
             distance: int = image_hash - stored_hash
             
-            if distance < min_distance and distance <= threshold:
-                min_distance = distance
-                best_match = mapping
+            if distance <= threshold:
+                matches.append(ImageMapping(*mapping))
         
-        return ImageMapping(*best_match) if best_match else None
+        return matches
 
     def get_next_book_id(self) -> int:
         cursor: sqlite3.Cursor = self.conn.cursor()

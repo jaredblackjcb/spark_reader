@@ -7,7 +7,6 @@ from typing import Optional
 
 class Narrator:
     def __init__(self, db_path: str = 'data/image_mappings.db'):
-        self.book_id: Optional[int] = None
         self.db_path: str = db_path
         self.image_matcher: Optional[ImageMatcher] = None
         self.image_context: ImageContextController = ImageContextController(on_stable_context=self._handle_stable_context)
@@ -25,8 +24,7 @@ class Narrator:
             self.db.close()
 
     def _handle_stable_context(self, image_mapping: ImageMapping) -> None:
-        match: Optional[ImageMapping] = self.image_matcher.match_image(image_mapping.image_path, self.book_id)
-        self.book_id = match.book_id if match else None
+        match: Optional[ImageMapping] = self.image_matcher.match_image(image_mapping.image_path)
         if match:
             audio_path: str = match.audio_path
             if audio_path != self.current_audio:
