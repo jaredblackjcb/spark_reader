@@ -25,7 +25,7 @@ class ImageMatcher:
             self.current_book_id = None
         return matches
 
-    def _match_orb(self, image_mappings: List[ImageMapping], orb_features: np.ndarray, threshold: int = 10) -> List[ImageMapping]:
+    def _match_orb(self, image_mappings: List[ImageMapping], orb_features: np.ndarray, min_matches: int = 80, max_distance: int = 50) -> List[ImageMapping]:
         matches: List[ImageMapping] = []
 
         for mapping in image_mappings:
@@ -34,41 +34,14 @@ class ImageMatcher:
             bf: cv2.BFMatcher = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
             feature_matches: List[cv2.DMatch] = bf.match(orb_features, stored_features)
             
-            good_matches: List[cv2.DMatch] = [m for m in feature_matches if m.distance < 50]
-            
-            if len(good_matches) > threshold:
+            good_matches: List[cv2.DMatch] = [m for m in feature_matches if m.distance < max_distance]
+            print(f"Good matches: {len(good_matches)}. Min matches: {min_matches}")
+            if len(good_matches) > min_matches:
                 matches.append(mapping)
 
         return matches
 
-    def _match_sift(self, image_mappings: List[ImageMapping], query_features: np.ndarray) -> Optional[ImageMapping]:
-        """
-        Compare the SIFT features from each mapping in image_mappings and return the best match.
 
-        Args:
-            image_mappings (List[ImageMapping]): List of image mappings to compare against.
-            query_features (np.ndarray): SIFT features of the query image.
-
-        Returns:
-            Optional[ImageMapping]: The best matching image mapping or None if no good match is found.
-        """
-        best_match: Optional[ImageMapping] = None
-        max_good_matches: int = 0
-
-        for mapping in image_mappings:
-            stored_features: np.ndarray = np.frombuffer(mapping.sift_features, dtype=np.float32).reshape(-1, 128)
-            
-            bf: cv2.BFMatcher = cv2.BFMatcher(cv2.NORM_L2, crossCheck=True)
-            feature_matches: List[cv2.DMatch] = bf.match(query_features, stored_features)
-            # TODO: Figure out why good_matches is always empty
-            good_matches: List[cv2.DMatch] = [m for m in feature_matches if m.distance < 0.7 * min(m.distance for m in feature_matches)]
-            
-            if len(good_matches) > max_good_matches:
-                max_good_matches = len(good_matches)
-                best_match = mapping
-
-        return best_match if max_good_matches > 10 else None
-    
     def _set_current_book_context(self, book_id: int) -> None:
         self.current_book_id = book_id
         self.current_book_mappings = self.db.get_book_mappings(self.current_book_id)
@@ -81,15 +54,10 @@ class ImageMatcher:
 
         matches: List[ImageMapping] = self._match_hash(image_hash)
         # If multiple page ImageMappings are found, try matching with sift and orb features.
-        if len(matches) > 1:
-            # Try matching orb features
+        if len(matches) >= 1:
+            # Try matching orb features to make sure it is a match
             matches = self._match_orb(matches, extract_orb_features(image_path))
-        elif len(matches) == 1:
-            best_match = matches[0]
-        if len(matches) > 1:
-            # Find and return best match using sift features
-            best_match = self._match_sift(matches, extract_sift_features(image_path))
-        elif len(matches) == 1:
+        if len(matches) == 1:
             best_match = matches[0]
         # If a match is found and the current book mappings are not set, set the current book mappings
         if best_match and not self.current_book_mappings:
