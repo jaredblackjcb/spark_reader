@@ -1,7 +1,6 @@
 import threading
 import time
 from PIL import Image
-import cv2
 from collections import deque
 from typing import Optional, Callable, Deque
 from src.image_mapping import ImageMapping, ImageMappingDB
