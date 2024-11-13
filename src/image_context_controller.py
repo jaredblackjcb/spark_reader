@@ -5,7 +5,7 @@ from collections import deque
 from typing import Optional, Callable, Deque
 from src.image_mapping import ImageMapping, ImageMappingDB
 from enum import Enum
-from src.image_utils import hash_image, save_image, capture_image
+from src.image_utils import ImageUtils
 from imagehash import ImageHash
 
 class ContextState(Enum):
@@ -18,7 +18,7 @@ class LEDColor(Enum):
     GREEN = 2
 
 class ImageContextController:
-    def __init__(self, refresh_rate: float = 0.3, history_size: int = 3, stable_threshold: int = 10, 
+    def __init__(self, refresh_rate: float = 0.3, history_size: int = 4, stable_threshold: int = 10, 
                  page_turn_threshold: int = 20, stabilization_count: int = 5, 
                  on_stable_context: Optional[Callable[[ImageMapping], None]] = None, 
                  led_indicator: Optional[Callable[[LEDColor], None]] = None):
@@ -37,9 +37,10 @@ class ImageContextController:
         self.state: ContextState = ContextState.SEARCHING_STABLE
         self.stable_count: int = 0
         self.db: Optional[ImageMappingDB] = None
+        self.image_utils = ImageUtils()
 
     def _set_image_context(self, new_image: Image.Image, new_image_hash: ImageHash) -> ImageMapping:
-        image_path: str = save_image(new_image, temp=True)
+        image_path: str = self.image_utils.save_image(new_image, temp=True)
         image_mapping: ImageMapping = ImageMapping(image_path=image_path, image_hash=new_image_hash)
         self.current_image_mapping = image_mapping
         self.last_key_image_hash = new_image_hash
@@ -48,8 +49,8 @@ class ImageContextController:
 
     def _detect_context_switch(self) -> None:
         try:
-            new_image: Image.Image = capture_image()
-            new_image_hash: ImageHash = hash_image(new_image)
+            new_image: Image.Image = self.image_utils.capture_image()
+            new_image_hash: ImageHash = ImageUtils.hash_image(new_image)
 
             if len(self.hash_history) > 0:
                 hamming_distance: int = new_image_hash - self.hash_history[-1]
@@ -112,7 +113,9 @@ class ImageContextController:
             self.led_indicator(color)
 
     def run(self) -> None:
+        """Start the context controller and initialize camera."""
         self.is_running = True
+        self.image_utils.init_camera()
         self._thread = threading.Thread(target=self._run)
         self._thread.start()
 
@@ -124,6 +127,8 @@ class ImageContextController:
         self.db.close()
 
     def stop(self) -> None:
+        """Stop the context controller and release camera resources."""
         self.is_running = False
         if self._thread is not None:
             self._thread.join()
+        self.image_utils.stop_camera()

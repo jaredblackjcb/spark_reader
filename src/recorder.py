@@ -2,7 +2,7 @@ from src.image_context_controller import ImageContextController
 from src.image_mapping import ImageMappingDB
 from src.audio_utils import record_audio, split_audio, stop_audio_recording
 import time
-from src.image_utils import save_image, extract_orb_features, extract_sift_features, open_image, hash_image
+from src.image_utils import ImageUtils
 import logging
 from contextlib import contextmanager
 
@@ -22,8 +22,8 @@ class Recorder:
             # Calculate the timestamp of the page turn
             timestamp = time.time() - self.recording_start_time
             # Retrieve the current image and save it
-            current_image = open_image(new_image_mapping.image_path)
-            new_image_path = save_image(current_image)
+            current_image = ImageUtils.open_image(new_image_mapping.image_path)
+            new_image_path = ImageUtils.save_image(current_image)
             new_image_mapping.image_path = new_image_path
             self.page_timestamps.append((timestamp, new_image_mapping))
             print(f"Page turn detected at {timestamp:.2f} seconds")
@@ -54,10 +54,10 @@ class Recorder:
         for i, (audio_clip, (_, image_mapping)) in enumerate(zip(audio_clips, self.page_timestamps)):
             image_mapping.book_id = book_id
             image_mapping.audio_path = audio_clip
-            image_mapping.sift_features = extract_sift_features(image_mapping.image_path)
-            image_mapping.orb_features = extract_orb_features(image_mapping.image_path)
-            image_mapping.image_hash = hash_image(image_mapping.image_path)
-            
+            image_mapping.sift_features = ImageUtils.extract_sift_features(image_mapping.image_path)
+            image_mapping.orb_features = ImageUtils.extract_orb_features(image_mapping.image_path)
+            image_mapping.image_hash = ImageUtils.hash_image(image_mapping.image_path)
+
             self.image_mapping_db.add_mapping(
                 image_mapping.book_id,
                 image_mapping.image_path,

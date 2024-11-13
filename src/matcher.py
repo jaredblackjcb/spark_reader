@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from typing import Optional, List
 from src.image_mapping import ImageMappingDB, ImageMapping
-from src.image_utils import hash_image, extract_orb_features, extract_sift_features
+from src.image_utils import ImageUtils
 from imagehash import ImageHash, hex_to_hash
 
 class ImageMatcher:
@@ -49,14 +49,14 @@ class ImageMatcher:
 
     def match_image(self, image_path: str) -> Optional[ImageMapping]:
         # Find the book id using hash to determine most likely book.
-        image_hash: ImageHash = hash_image(image_path)
+        image_hash: ImageHash = ImageUtils.hash_image(image_path)
         best_match: Optional[ImageMapping] = None
 
         matches: List[ImageMapping] = self._match_hash(image_hash)
         # If multiple page ImageMappings are found, try matching with sift and orb features.
         if len(matches) >= 1:
             # Try matching orb features to make sure it is a match
-            matches = self._match_orb(matches, extract_orb_features(image_path))
+            matches = self._match_orb(matches, ImageUtils.extract_orb_features(image_path))
         if len(matches) == 1:
             best_match = matches[0]
         # If a match is found and the current book mappings are not set, set the current book mappings
