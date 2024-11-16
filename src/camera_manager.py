@@ -101,8 +101,14 @@ class CameraManager:
         with self.lock:
             self.is_running = False
             if self.capture is not None:
-                if self.using_picamera:
-                    self.capture.stop()
-                else:
-                    self.capture.release()
-                self.capture = None
+                try:
+                    if self.using_picamera:
+                        self.capture.stop()
+                        self.capture.close()  # Add explicit close for PiCamera2
+                    else:
+                        self.capture.release()
+                except Exception as e:
+                    print(f"Warning: Error while stopping camera: {e}")
+                finally:
+                    self.capture = None
+                    time.sleep(0.5)  # Add small delay to ensure camera is released

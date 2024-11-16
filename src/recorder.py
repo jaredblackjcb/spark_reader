@@ -41,31 +41,40 @@ class Recorder:
         self.image_context.run()
 
     def stop_recording(self):
-        # End the recording process
-        self.image_context.stop()
+        # End the recording process and ensure camera is released
+        if self.image_context:
+            self.image_context.stop()
+            # Add a small delay to ensure camera is fully released
+            time.sleep(0.5)
         
         # Stop the audio recording and get the final audio file path
         self.current_audio_file = stop_audio_recording()
 
     def process_recording(self):
-        # Process the recorded audio and associate it with detected page turns
-        audio_clips = split_audio(self.current_audio_file, self.page_timestamps)
-        book_id = self.image_mapping_db.get_next_book_id()
-        for i, (audio_clip, (_, image_mapping)) in enumerate(zip(audio_clips, self.page_timestamps)):
-            image_mapping.book_id = book_id
-            image_mapping.audio_path = audio_clip
-            image_mapping.sift_features = ImageUtils.extract_sift_features(image_mapping.image_path)
-            image_mapping.orb_features = ImageUtils.extract_orb_features(image_mapping.image_path)
-            image_mapping.image_hash = ImageUtils.hash_image(image_mapping.image_path)
+        try:
+            # Process the recorded audio and associate it with detected page turns
+            audio_clips = split_audio(self.current_audio_file, self.page_timestamps)
+            book_id = self.image_mapping_db.get_next_book_id()
+            for i, (audio_clip, (_, image_mapping)) in enumerate(zip(audio_clips, self.page_timestamps)):
+                image_mapping.book_id = book_id
+                image_mapping.audio_path = audio_clip
+                image_mapping.sift_features = ImageUtils.extract_sift_features(image_mapping.image_path)
+                image_mapping.orb_features = ImageUtils.extract_orb_features(image_mapping.image_path)
+                image_mapping.image_hash = ImageUtils.hash_image(image_mapping.image_path)
 
-            self.image_mapping_db.add_mapping(
-                image_mapping.book_id,
-                image_mapping.image_path,
-                image_mapping.audio_path,
-                image_mapping.image_hash,
-                image_mapping.sift_features,
-                image_mapping.orb_features
-            )
+                self.image_mapping_db.add_mapping(
+                    image_mapping.book_id,
+                    image_mapping.image_path,
+                    image_mapping.audio_path,
+                    image_mapping.image_hash,
+                    image_mapping.sift_features,
+                    image_mapping.orb_features
+                )
+        finally:
+            # Ensure image_context is fully stopped and camera is released
+            if self.image_context:
+                self.image_context.stop()
+                self.image_context = None
 
     @contextmanager
     def _recording_session(self):

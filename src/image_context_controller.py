@@ -131,4 +131,9 @@ class ImageContextController:
         self.is_running = False
         if self._thread is not None:
             self._thread.join()
-        self.image_utils.stop_camera()
+        if self.image_utils:
+            self.image_utils.stop_camera()
+            self.image_utils = None  # Clear the reference
+        if self.db:
+            self.db.close()
+            self.db = None
