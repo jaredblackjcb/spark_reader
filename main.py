@@ -5,6 +5,7 @@ if __name__ == "__main__":
     narrator = Narrator()
     recorder = Recorder()
     option = None
+    
     while option != '3':
         print('''
           ################## Spark Reader ##################
@@ -13,10 +14,10 @@ if __name__ == "__main__":
           3. Exit program
           ''')
         option = input("\nPlease select an option: ")
-        match option:
-            case '1':
-                recorder.record_book()
-            case '2':
-                narrator.narrate()
-            case _:
-                print("Please select a valid option 1, 2, or 3")
+        
+        if option == '1':
+            recorder.record_book()
+        elif option == '2':
+            narrator.narrate()
+        elif option != '3':
+            print("Please select a valid option 1, 2, or 3")

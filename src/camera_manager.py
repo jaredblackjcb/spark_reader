@@ -2,7 +2,7 @@ from threading import Lock
 import cv2
 from PIL import Image
 import time
-from typing import Optional, Union
+from typing import Optional, Union, Tuple
 import platform
 import sys
 
@@ -27,7 +27,7 @@ class CameraManager:
         camera_id (int): Camera device ID (default: 0)
         resolution (tuple[int, int], optional): Desired camera resolution (width, height)
     """
-    def __init__(self, camera_id: int = 0, resolution: tuple[int, int] = (1920, 1080)):
+    def __init__(self, camera_id: int = 0, resolution: Tuple[int, int] = (1920, 1080)):
         self.camera_id = camera_id
         self.resolution = resolution
         self.capture: Union[cv2.VideoCapture, Picamera2, None] = None
