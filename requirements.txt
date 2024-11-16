@@ -10,7 +10,7 @@ pycparser==2.22
 pydub==0.25.1
 pygame==2.6.1
 Pygments==2.18.0
-PyWavelets==1.7.0
+PyWavelets==1.6.0
 scipy==1.13.1
 six==1.16.0
 sounddevice==0.5.1
