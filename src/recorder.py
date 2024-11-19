@@ -58,7 +58,6 @@ class Recorder:
             for i, (audio_clip, (_, image_mapping)) in enumerate(zip(audio_clips, self.page_timestamps)):
                 image_mapping.book_id = book_id
                 image_mapping.audio_path = audio_clip
-                image_mapping.sift_features = ImageUtils.extract_sift_features(image_mapping.image_path)
                 image_mapping.orb_features = ImageUtils.extract_orb_features(image_mapping.image_path)
                 image_mapping.image_hash = ImageUtils.hash_image(image_mapping.image_path)
 
@@ -67,7 +66,6 @@ class Recorder:
                     image_mapping.image_path,
                     image_mapping.audio_path,
                     image_mapping.image_hash,
-                    image_mapping.sift_features,
                     image_mapping.orb_features
                 )
         finally:

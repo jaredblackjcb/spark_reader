@@ -13,7 +13,7 @@ Image Processing:
 
 	•	Use OpenCV for capturing, transforming, and analyzing images.
 	•	Convert images to grayscale for optimized processing where color information is not required.
-	•	Implement feature extraction techniques such as ORB or SIFT for creating image fingerprints.
+	•	Implement feature extraction techniques such as ORB for creating image fingerprints.
 	•	Utilize perceptual hashing techniques for fast image comparisons.
 	•	Use efficient methods for batch image processing to manage large datasets (e.g., 3000+ pages).
 

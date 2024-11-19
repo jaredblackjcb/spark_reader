@@ -78,12 +78,5 @@ class ImageUtils:
         return descriptors
 
     @staticmethod
-    def extract_sift_features(image_path: str) -> np.ndarray:
-        img: np.ndarray = ImageUtils._read_grayscale_image(image_path)
-        sift = cv2.SIFT_create()
-        keypoints, descriptors = sift.detectAndCompute(img, None)
-        return descriptors
-
-    @staticmethod
     def _read_grayscale_image(image_path: str) -> np.ndarray:
         return cv2.imread(image_path, cv2.IMREAD_GRAYSCALE)

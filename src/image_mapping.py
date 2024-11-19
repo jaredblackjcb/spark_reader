@@ -16,14 +16,12 @@ class ImageMapping:
                  image_path: Optional[str] = None, 
                  audio_path: Optional[str] = None, 
                  image_hash: Optional[Union[str, ImageHash]] = None, 
-                 sift_features: Optional[np.ndarray] = None, 
                  orb_features: Optional[np.ndarray] = None) -> None:
         self.id: Optional[int] = id
         self.book_id: Optional[int] = book_id
         self.image_path: Optional[str] = image_path
         self.audio_path: Optional[str] = audio_path
         self.image_hash: Optional[Union[str, ImageHash]] = image_hash
-        self.sift_features: Optional[np.ndarray] = sift_features
         self.orb_features: Optional[np.ndarray] = orb_features
 
 class ImageMappingDB:
@@ -47,20 +45,18 @@ class ImageMappingDB:
                 image_path TEXT,
                 audio_path TEXT,
                 image_hash TEXT,
-                sift_features BLOB,
                 orb_features BLOB
             )
         ''')
         self.conn.commit()
 
     def add_mapping(self, book_id: int, image_path: str, audio_path: str, 
-                    image_hash: ImageHash, sift_features: np.ndarray, 
-                    orb_features: np.ndarray) -> None:
+                    image_hash: ImageHash, orb_features: np.ndarray) -> None:
         cursor: sqlite3.Cursor = self.conn.cursor()
         cursor.execute('''
-            INSERT INTO image_mappings (book_id, image_path, audio_path, image_hash, sift_features, orb_features)
+            INSERT INTO image_mappings (book_id, image_path, audio_path, image_hash, orb_features)
             VALUES (?, ?, ?, ?, ?, ?)
-        ''', (book_id, image_path, audio_path, str(image_hash), sqlite3.Binary(sift_features.tobytes()), sqlite3.Binary(orb_features.tobytes())))
+        ''', (book_id, image_path, audio_path, str(image_hash), sqlite3.Binary(orb_features.tobytes())))
         self.conn.commit()
 
     def get_book_mappings(self, book_id: int) -> List[ImageMapping]:
