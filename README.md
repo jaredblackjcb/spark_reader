@@ -30,7 +30,7 @@ source <env name>/bin/activate
 
 ## Install OS dependencies for Python Libraries
 Install the following libraries. If you get an error message saying ‘E: Unable to locate package <package_name>’, it is likely that a different version exists for the OS version you are using.
-Go to  Debian Webmaster, webmaster@debian.org Debian -- Debian Packages Search and search for the package name without the version.
+Go to [Debian Webmaster -- Debian Packages Search](https://packages.debian.org/index) and search for the package name without the version.
 ![image.png](https://prod-files-secure.s3.us-west-2.amazonaws.com/4e43b154-c3d0-49f9-9f21-8f8727c1ba7b/d6c588e6-76f2-44d6-ae8a-c5f07765825e/image.png)
 
 Install numpy dependencies:
